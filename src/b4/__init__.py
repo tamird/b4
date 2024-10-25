@@ -36,7 +36,7 @@ import requests
 from pathlib import Path
 from contextlib import contextmanager
 from typing import Optional, Tuple, Set, List, BinaryIO, Union, Sequence, Literal, Iterator, Dict, \
-    TypeVar, overload, Generator, Any
+    TypeVar, overload, Generator, Any, TypedDict
 
 from email.message import EmailMessage
 
@@ -111,7 +111,33 @@ CI_FLAGS_FANCY = {
 DEVSIG_HDR = 'X-Developer-Signature'
 LOREADDR = 'https://lore.kernel.org'
 
-DEFAULT_CONFIG = {
+GitConfigBool = Literal['yes', 'no']
+
+GitConfig = TypedDict("GitConfig", {
+    'name': str,
+    'email': str,
+    'midmask': str,
+    'linkmask': str,
+    'searchmask': str,
+    'listid-preference': str,
+    'save-maildirs': GitConfigBool,
+    'attestation-policy': Literal['off', 'check', 'softfail', 'hardfail'],
+    'attestation-staleness-days': int,
+    'attestation-check-dkim': GitConfigBool,
+    'attestation-dns-resolvers': Optional[List[str]],
+    'attestation-gnupghome': Optional[str],
+    'attestation-checkmarks': Literal['simple', 'fancy'],
+    'cache-expire': int,
+    'thanks-commit-url-mask': Optional[str],
+    'thanks-pr-template': Optional[str],
+    'thanks-am-template': Optional[str],
+    'editor': str,
+    'program': str,
+    'gpgbin': Optional[str],
+    'sendemail-identity': None,
+}, total=False)
+
+DEFAULT_CONFIG: GitConfig = {
     'midmask': LOREADDR + '/all/%s',
     'linkmask': LOREADDR + '/r/%s',
     'searchmask': LOREADDR + '/all/?x=m&q=%s',
@@ -127,7 +153,7 @@ DEFAULT_CONFIG = {
     # hardfail: exit with an error when no attestation found
     'attestation-policy': 'softfail',
     # How many days before we consider attestation too old?
-    'attestation-staleness-days': '30',
+    'attestation-staleness-days': 30,
     # Should we check DKIM signatures if we don't find any other attestation?
     'attestation-check-dkim': 'yes',
     # You can specify your own resolvers instead of using the ones provided by your OS
@@ -138,7 +164,7 @@ DEFAULT_CONFIG = {
     # Do you like simple or fancy checkmarks?
     'attestation-checkmarks': 'fancy',
     # How long to keep things in cache before expiring (minutes)?
-    'cache-expire': '10',
+    'cache-expire': 10,
     # Used when creating summaries for b4 ty
     'thanks-commit-url-mask': None,
     # See thanks-pr-template.example
@@ -154,11 +180,11 @@ DEFAULT_CONFIG = {
 }
 
 # This is where we store actual config
-MAIN_CONFIG: Dict[str, Optional[Union[str, List[str]]]] = dict()
+MAIN_CONFIG: GitConfig = {}
 # This is git-config user.*
-USER_CONFIG: Dict[str, Optional[Union[str, List[str]]]] = dict()
+USER_CONFIG: GitConfig = {}
 # This is git-config sendemail.*
-SENDEMAIL_CONFIG: Dict[str, Optional[Union[str, List[str]]]] = dict()
+SENDEMAIL_CONFIG: GitConfig = {}
 
 # Used for storing our requests session
 REQSESSION: Optional[requests.Session] = None
@@ -2929,8 +2955,8 @@ def git_set_config(fullpath: Optional[str], param: str, value: str, operation: s
     return ecode
 
 
-def get_config_from_git(regexp: str, defaults: Optional[Dict[str, Any]] = None,
-                        multivals: Optional[List[str]] = None, source: Optional[str] = None) -> Dict[str, Any]:
+def get_config_from_git(regexp: str, defaults: Optional[GitConfig] = None,
+                        multivals: Optional[List[str]] = None, source: Optional[str] = None) -> GitConfig:
     if multivals is None:
         multivals = list()
     args = ['config']
@@ -3026,7 +3052,7 @@ def _setup_main_config(cmdargs: Optional[argparse.Namespace] = None) -> None:
     MAIN_CONFIG = config
 
 
-def get_main_config() -> Dict[str, Optional[Union[str, List[str]]]]:
+def get_main_config() -> GitConfig:
     return MAIN_CONFIG
 
 
@@ -3150,7 +3176,7 @@ def _setup_user_config(cmdargs: argparse.Namespace) -> None:
     _cmdline_config_override(cmdargs, USER_CONFIG, 'user')
 
 
-def get_user_config() -> Dict[str, Optional[Union[str, List[str]]]]:
+def get_user_config() -> GitConfig:
     return USER_CONFIG
 
 
@@ -3923,7 +3949,7 @@ def _setup_sendemail_config(cmdargs: argparse.Namespace) -> None:
     SENDEMAIL_CONFIG = sconfig
 
 
-def get_sendemail_config() -> Dict[str, Optional[Union[str, List[str]]]]:
+def get_sendemail_config() -> GitConfig:
     return SENDEMAIL_CONFIG
 
 
